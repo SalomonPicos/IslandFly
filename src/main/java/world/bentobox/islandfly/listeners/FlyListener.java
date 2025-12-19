@@ -28,7 +28,6 @@ public class FlyListener implements Listener {
      */
     private final IslandFlyAddon addon;
 
-
     /**
      * Default constructor.
      * @param islandFlyAddon instance of IslandFlyAddon
@@ -87,18 +86,21 @@ public class FlyListener implements Listener {
     public void onExitIsland(final IslandExitEvent event) {
         final User user = User.getInstance(event.getPlayerUUID());
         String permPrefix = addon.getPlugin().getIWM().getPermissionPrefix(user.getWorld());
+        boolean toWilderness = event.getToIsland() == null;
         // Ignore ops
         if (user.isOp() || user.getPlayer().getGameMode().equals(GameMode.CREATIVE)
                 || user.getPlayer().getGameMode().equals(GameMode.SPECTATOR)
-                || user.hasPermission(permPrefix + "island.flybypass")
-                || (!user.hasPermission(permPrefix + "island.fly")
-                        && !user.hasPermission(permPrefix + "island.flyspawn"))) return;
+                || user.hasPermission(permPrefix + "island.flybypass")) return;
         // Alert player fly will be disabled
         final int flyTimeout = this.addon.getSettings().getFlyTimeout();
 
         // If timeout is 0 or less disable fly immediately
         if (flyTimeout <= 0) {
-            removeFly(user);
+            if (toWilderness) {
+                disableFly(user);
+            } else {
+                removeFly(user);
+            }
             return;
         }
 
@@ -107,7 +109,15 @@ public class FlyListener implements Listener {
             user.sendMessage("islandfly.fly-outside-alert", TextVariables.NUMBER, String.valueOf(flyTimeout));
         }
 
-        Bukkit.getScheduler().runTaskLater(this.addon.getPlugin(), () -> removeFly(user), 20L * flyTimeout);
+        Bukkit.getScheduler().runTaskLater(this.addon.getPlugin(),
+                () -> {
+                    if (toWilderness) {
+                        disableFly(user);
+                    } else {
+                        removeFly(user);
+                    }
+                },
+                20L * flyTimeout);
     }
 
 
