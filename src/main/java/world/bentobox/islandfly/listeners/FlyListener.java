@@ -7,7 +7,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerToggleFlightEvent;
-import org.eclipse.jdt.annotation.NonNull;
 
 import world.bentobox.bentobox.api.events.island.IslandEnterEvent;
 import world.bentobox.bentobox.api.events.island.IslandExitEvent;
@@ -21,8 +20,6 @@ import world.bentobox.islandfly.IslandFlyAddon;
  * This class manages players fly ability.
  */
 public class FlyListener implements Listener {
-
-    private static final @NonNull String ISLANDFLY = "IslandFly-";
     /**
      * Addon instance object.
      */
@@ -44,7 +41,8 @@ public class FlyListener implements Listener {
         } else {
             addon.getIslands().getIslandAt(user.getLocation())
                     .filter(i -> i.getMemberSet().contains(user.getUniqueId())).ifPresent(is -> {
-                        user.putMetaData(ISLANDFLY + is.getUniqueId(), new MetaDataValue(event.isFlying()));
+                        user.putMetaData(IslandFlyAddon.ISLAND_FLY_FLYING_METADATA_PREFIX + is.getUniqueId(),
+                                new MetaDataValue(event.isFlying()));
                         addon.getPlayers().savePlayer(user.getUniqueId());
                     });
 
@@ -67,13 +65,18 @@ public class FlyListener implements Listener {
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onEnterIsland(final IslandEnterEvent event) {
         final User user = User.getInstance(event.getPlayerUUID());
-        user.getMetaData(ISLANDFLY + event.getIsland().getUniqueId())
-                .ifPresent(mdv -> {
-                    if (mdv.asBoolean()) {
-                        user.getPlayer().setAllowFlight(true);
-                        user.getPlayer().setFlying(mdv.asBoolean());
-                    }
-                });
+        boolean allowFlight = user.getMetaData(IslandFlyAddon.ISLAND_FLY_ENABLED_METADATA_PREFIX + event.getIsland().getUniqueId())
+                .map(MetaDataValue::asBoolean)
+                .orElse(false);
+        boolean wasFlying = user.getMetaData(IslandFlyAddon.ISLAND_FLY_FLYING_METADATA_PREFIX + event.getIsland().getUniqueId())
+                .map(MetaDataValue::asBoolean)
+                .orElse(false);
+        if (allowFlight || wasFlying) {
+            user.getPlayer().setAllowFlight(true);
+            if (wasFlying) {
+                user.getPlayer().setFlying(true);
+            }
+        }
         // Wait until after arriving at the island
         Bukkit.getScheduler().runTask(this.addon.getPlugin(), () -> checkUser(user));
     }
