@@ -28,8 +28,6 @@ public class IslandFlyAddon extends Addon {
      * A flag to allow or disallow flight on island
      * based on player's rank
      */
-    public static final String ISLAND_FLY_FLYING_METADATA_PREFIX = "IslandFly-";
-    public static final String ISLAND_FLY_ENABLED_METADATA_PREFIX = "IslandFly-Enabled-";
     public static final Flag ISLAND_FLY_PROTECTION =
             new Flag.Builder("ISLAND_FLY_PROTECTION", Material.ELYTRA)
             .type(Flag.Type.PROTECTION)

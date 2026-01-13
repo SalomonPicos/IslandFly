@@ -3,7 +3,6 @@ package world.bentobox.islandfly;
 import org.bukkit.entity.Player;
 import world.bentobox.bentobox.api.commands.CompositeCommand;
 import world.bentobox.bentobox.api.localization.TextVariables;
-import world.bentobox.bentobox.api.metadata.MetaDataValue;
 import world.bentobox.bentobox.api.user.User;
 import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.bentobox.util.Util;
@@ -93,25 +92,11 @@ public class FlyToggleCommand extends CompositeCommand {
             player.setFlying(false);
             player.setAllowFlight(false);
             user.sendMessage("islandfly.disable-fly");
-            updateFlyMetadata(user, false, false);
         } else {
             // Enable fly and notify player
             player.setAllowFlight(true);
             user.sendMessage("islandfly.enable-fly");
-            updateFlyMetadata(user, true, player.isFlying());
         }
         return true;
-    }
-
-    private void updateFlyMetadata(User user, boolean allowFlight, boolean isFlying) {
-        getIslands().getIslandAt(user.getLocation())
-                .filter(i -> i.getMemberSet().contains(user.getUniqueId()))
-                .ifPresent(island -> {
-                    user.putMetaData(IslandFlyAddon.ISLAND_FLY_ENABLED_METADATA_PREFIX + island.getUniqueId(),
-                            new MetaDataValue(allowFlight));
-                    user.putMetaData(IslandFlyAddon.ISLAND_FLY_FLYING_METADATA_PREFIX + island.getUniqueId(),
-                            new MetaDataValue(isFlying));
-                    islandFlyAddon.getPlayers().savePlayer(user.getUniqueId());
-                });
     }
 }
