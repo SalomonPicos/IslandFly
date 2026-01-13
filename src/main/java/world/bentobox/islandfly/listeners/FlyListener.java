@@ -6,8 +6,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerToggleFlightEvent;
-import org.eclipse.jdt.annotation.NonNull;
 
 import world.bentobox.bentobox.api.events.island.IslandEnterEvent;
 import world.bentobox.bentobox.api.events.island.IslandExitEvent;
@@ -21,8 +21,6 @@ import world.bentobox.islandfly.IslandFlyAddon;
  * This class manages players fly ability.
  */
 public class FlyListener implements Listener {
-
-    private static final @NonNull String ISLANDFLY = "IslandFly-";
     /**
      * Addon instance object.
      */
@@ -38,18 +36,17 @@ public class FlyListener implements Listener {
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onToggleFlight(final PlayerToggleFlightEvent event) {
-        // Check world
+        final User user = User.getInstance(event.getPlayer());
         if (!addon.inWorld(event.getPlayer().getWorld())) {
-            // Ignore
             return;
         }
-        final User user = User.getInstance(event.getPlayer());
         if (checkUser(user)) {
             user.sendMessage("islandfly.not-allowed");
         } else {
             addon.getIslands().getIslandAt(user.getLocation())
             .filter(i -> i.getMemberSet().contains(user.getUniqueId())).ifPresent(is -> {
-                user.putMetaData(ISLANDFLY + is.getUniqueId(), new MetaDataValue(event.isFlying()));
+                user.putMetaData(IslandFlyAddon.ISLAND_FLY_FLYING_METADATA_PREFIX + is.getUniqueId(),
+                        new MetaDataValue(event.isFlying()));
                 addon.getPlayers().savePlayer(user.getUniqueId());
             });
 
@@ -74,15 +71,18 @@ public class FlyListener implements Listener {
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onEnterIsland(final IslandEnterEvent event) {
         final User user = User.getInstance(event.getPlayerUUID());
-        user.getMetaData(ISLANDFLY + event.getIsland().getUniqueId())
-        .ifPresent(mdv -> {
-            if (mdv.asBoolean()) {
-                user.getPlayer().setAllowFlight(true);
-                user.getPlayer().setFlying(mdv.asBoolean());
-            }
+        scheduleApply(user, event.getIsland());
+    }
+
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onWorldChange(final PlayerChangedWorldEvent event) {
+        final User user = User.getInstance(event.getPlayer());
+        if (!addon.inWorld(event.getPlayer().getWorld())) {
+            return;
+        }
+        addon.getIslands().getIslandAt(user.getLocation()).ifPresent(island -> {
+            scheduleApply(user, island);
         });
-        // Wait until after arriving at the island
-        Bukkit.getScheduler().runTask(this.addon.getPlugin(), () -> checkUser(user));
     }
 
     /**
@@ -93,7 +93,6 @@ public class FlyListener implements Listener {
     public void onExitIsland(final IslandExitEvent event) {
         final User user = User.getInstance(event.getPlayerUUID());
         String permPrefix = addon.getPlugin().getIWM().getPermissionPrefix(user.getWorld());
-        boolean toWilderness = event.getToIsland() == null;
         // Ignore ops
         if (user.isOp() || user.getPlayer().getGameMode().equals(GameMode.CREATIVE)
                 || user.getPlayer().getGameMode().equals(GameMode.SPECTATOR)
@@ -103,11 +102,7 @@ public class FlyListener implements Listener {
 
         // If timeout is 0 or less disable fly immediately
         if (flyTimeout <= 0) {
-            if (toWilderness) {
-                disableFly(user);
-            } else {
-                removeFly(user);
-            }
+            removeFly(user);
             return;
         }
 
@@ -116,15 +111,7 @@ public class FlyListener implements Listener {
             user.sendMessage("islandfly.fly-outside-alert", TextVariables.NUMBER, String.valueOf(flyTimeout));
         }
 
-        Bukkit.getScheduler().runTaskLater(this.addon.getPlugin(),
-                () -> {
-                    if (toWilderness) {
-                        disableFly(user);
-                    } else {
-                        removeFly(user);
-                    }
-                },
-                20L * flyTimeout);
+        Bukkit.getScheduler().runTaskLater(this.addon.getPlugin(), () -> removeFly(user), 20L * flyTimeout);
     }
 
 
@@ -135,7 +122,9 @@ public class FlyListener implements Listener {
      */
     boolean removeFly(User user) {
         // Verify player is still online
-        if (!user.isOnline()) return false;
+        if (!user.isOnline()) {
+            return false;
+        }
 
         Island island = addon.getIslands().getProtectedIslandAt(user.getLocation()).orElse(null);
 
@@ -185,5 +174,29 @@ public class FlyListener implements Listener {
 
         player.setFlying(false);
         player.setAllowFlight(false);
+    }
+
+    private void scheduleApply(User user, Island island) {
+        Bukkit.getScheduler().runTask(this.addon.getPlugin(), () -> {
+            if (!user.isOnline()) {
+                return;
+            }
+            if (!user.getWorld().equals(island.getWorld())) {
+                return;
+            }
+            boolean enabled = user.getMetaData(IslandFlyAddon.ISLAND_FLY_ENABLED_METADATA_PREFIX + island.getUniqueId())
+                    .map(MetaDataValue::asBoolean)
+                    .orElse(false);
+            boolean wasFlying = user.getMetaData(IslandFlyAddon.ISLAND_FLY_FLYING_METADATA_PREFIX + island.getUniqueId())
+                    .map(MetaDataValue::asBoolean)
+                    .orElse(false);
+            if (enabled) {
+                user.getPlayer().setAllowFlight(true);
+                if (wasFlying) {
+                    user.getPlayer().setFlying(true);
+                }
+            }
+            checkUser(user);
+        });
     }
 }

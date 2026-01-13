@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.google.common.collect.ImmutableSet;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -39,6 +40,7 @@ import world.bentobox.bentobox.api.user.User;
 import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.bentobox.managers.CommandsManager;
 import world.bentobox.bentobox.managers.IslandsManager;
+import world.bentobox.bentobox.managers.PlayersManager;
 import world.bentobox.bentobox.util.Util;
 import world.bentobox.islandfly.config.Settings;
 
@@ -64,6 +66,8 @@ public class FlyToggleCommandTest {
     private FlyToggleCommand ftc;
     @Mock
     private IslandsManager im;
+    @Mock
+    private PlayersManager playersManager;
     @Mock
     private @Nullable Location location;
     @Mock
@@ -121,9 +125,11 @@ public class FlyToggleCommandTest {
         // Settings
         settings = new Settings();
         when(addon.getSettings()).thenReturn(settings);
+        when(addon.getPlayers()).thenReturn(playersManager);
 
         // Island
         when(island.getProtectionBoundingBox()).thenReturn(box);
+        when(island.getMemberSet()).thenReturn(ImmutableSet.of(uuid));
         when(location.toVector()).thenReturn(new Vector(0,60,0));
         // Locations are always inside the box for now
         when(box.contains(any(Vector.class))).thenReturn(true);

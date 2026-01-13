@@ -46,6 +46,11 @@ public class IslandFlyAddon extends Addon {
             .mode(Flag.Mode.ADVANCED)
             .defaultRank(RanksManager.MEMBER_RANK)
             .defaultSetting(true).build();
+    /**
+     * Per-island user metadata keys.
+     */
+    public static final String ISLAND_FLY_FLYING_METADATA_PREFIX = "IslandFly-";
+    public static final String ISLAND_FLY_ENABLED_METADATA_PREFIX = "IslandFly-Enabled-";
 
     /**
      * Boolean that indicate if addon is hooked into any gamemode.
